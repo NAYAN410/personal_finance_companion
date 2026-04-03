@@ -68,7 +68,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     final notifier = ref.read(transactionListProvider.notifier);
     final selectedMonth = ref.watch(selectedMonthProvider);
     final availableMonths = ref.watch(availableMonthsProvider);
-    final repo = ref.read(financeRepoProvider);
 
     final monthIncome = transactions
         .where((t) => t.type == TransactionType.income)
@@ -94,7 +93,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         actions: [
-          // Export button
           IconButton(
             icon: const Icon(Icons.download_rounded),
             onPressed: _exportTransactions,
@@ -110,14 +108,16 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
             ],
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(120),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+      ),
+      body: Column(
+        children: [
+          // Filter Section (Month dropdown + Summary Card + Search) moved to body
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(30),
@@ -141,10 +141,8 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                     },
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Card(
+                const SizedBox(height: 12),
+                Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
@@ -154,18 +152,16 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _summaryItem('Income', monthIncome, Colors.green),
-                        Container(width: 1, height: 30, color: Colors.grey),
+                        Container(width: 1, height: 30, color: Colors.grey.withOpacity(0.3)),
                         _summaryItem('Expense', monthExpense, Colors.red),
-                        Container(width: 1, height: 30, color: Colors.grey),
+                        Container(width: 1, height: 30, color: Colors.grey.withOpacity(0.3)),
                         _summaryItem('Balance', monthBalance, monthBalance >= 0 ? Colors.blue : Colors.orange),
                       ],
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: Container(
+                const SizedBox(height: 12),
+                Container(
                   decoration: BoxDecoration(
                     color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(30),
@@ -181,64 +177,66 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                     onChanged: notifier.setSearchQuery,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: transactions.isEmpty
-            ? _buildEmptyState(context, selectedMonth)
-            : ListView.builder(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: transactions.length,
-          itemBuilder: (context, index) {
-            final transaction = transactions[index];
-            return Dismissible(
-              key: Key(transaction.id),
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade400,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.delete, color: Colors.white),
+          Expanded(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: transactions.isEmpty
+                  ? _buildEmptyState(context, selectedMonth)
+                  : ListView.builder(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: transactions.length,
+                itemBuilder: (context, index) {
+                  final transaction = transactions[index];
+                  return Dismissible(
+                    key: Key(transaction.id),
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade400,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    direction: DismissDirection.endToStart,
+                    onDismissed: (_) {
+                      notifier.deleteTransaction(transaction.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('${transaction.category} deleted'), duration: const Duration(seconds: 1)),
+                      );
+                    },
+                    child: Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      child: TransactionTile(
+                        transaction: transaction,
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.addEditTransaction,
+                            arguments: {'transaction': transaction},
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
               ),
-              direction: DismissDirection.endToStart,
-              onDismissed: (_) {
-                notifier.deleteTransaction(transaction.id);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${transaction.category} deleted'), duration: const Duration(seconds: 1)),
-                );
-              },
-              child: Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                child: TransactionTile(
-                  transaction: transaction,
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      AppRoutes.addEditTransaction,
-                      arguments: {'transaction': transaction},
-                    );
-                  },
-                ),
-              ),
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.pushNamed(context, AppRoutes.addEditTransaction),
         icon: const Icon(Icons.add),
         label: const Text('Add'),
         elevation: 4,
-        shape: StadiumBorder(),
+        shape: const StadiumBorder(),
       ),
     );
   }
@@ -269,7 +267,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
             onPressed: () => Navigator.pushNamed(context, AppRoutes.addEditTransaction),
             icon: const Icon(Icons.add),
             label: const Text('Add one'),
-            style: ElevatedButton.styleFrom(shape: StadiumBorder()),
+            style: ElevatedButton.styleFrom(shape: const StadiumBorder()),
           ),
         ],
       ),

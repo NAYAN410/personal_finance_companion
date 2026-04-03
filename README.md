@@ -181,20 +181,6 @@ Separation of concerns – UI, business logic, data access are decoupled. Easy t
 
 ---
 
-## 📸 Taking Screenshots
-1. Run the app on a real device or emulator.
-2. Add sample transactions (Income: ₹50,000, Expenses: Food ₹500, Transport ₹200).
-3. Set a goal (e.g., ₹10,000).
-4. Take screenshots of all 5 screens:
-   - Dashboard
-   - Transactions
-   - Add/Edit Transaction
-   - Goal
-   - Insights
-5. Save as PNG in `screenshots/` folder with names: `dashboard.png`, `transactions.png`, `add_edit.png`, `goal.png`, `insights.png`.
-
----
-
 ## 🔮 Future Improvements
 - **Recurring transactions** – monthly salary, rent.
 - **Budget limits** – per‑category spending alerts.
