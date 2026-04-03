@@ -70,7 +70,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: _buildGlassAppBar(context, isDark, selectedMonth, availableMonths),
+      appBar: _buildGlassAppBar(context, isDark),
       body: RefreshIndicator(
         onRefresh: () async {
           HapticFeedback.lightImpact();
@@ -78,9 +78,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         },
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.only(top: 110, bottom: 30),
+          padding: const EdgeInsets.only(top: 130, bottom: 30), // 👈 increased top padding to avoid hiding
           child: Column(
             children: [
+              // Month selector as a separate widget (improved UI)
+              _buildMonthSelector(isDark, selectedMonth, availableMonths),
+              const SizedBox(height: 20),
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: ScaleTransition(
@@ -114,16 +117,61 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           ),
         ),
       ),
-      floatingActionButton: _buildPremiumFAB(context),
+      // 👇 Removed FloatingActionButton as requested
     );
   }
 
-  PreferredSizeWidget _buildGlassAppBar(BuildContext context, bool isDark,
-      DateTime selectedMonth, List<DateTime> availableMonths) {
+  // Improved standalone month selector – modern pill with calendar icon
+  Widget _buildMonthSelector(bool isDark, DateTime selectedMonth, List<DateTime> availableMonths) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey.shade800.withOpacity(0.8) : Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(40),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: DropdownButton<DateTime>(
+          value: selectedMonth,
+          underline: const SizedBox(),
+          icon: const Icon(Icons.calendar_month, size: 20),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+          items: availableMonths.map((month) {
+            return DropdownMenuItem(
+              value: month,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(formatMonthYear(month)),
+              ),
+            );
+          }).toList(),
+          onChanged: (newMonth) {
+            if (newMonth != null) {
+              HapticFeedback.selectionClick();
+              ref.read(selectedMonthProvider.notifier).state = newMonth;
+              ref.read(transactionListProvider.notifier).setSelectedMonth(newMonth);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildGlassAppBar(BuildContext context, bool isDark) {
     return AppBar(
       elevation: 0,
       backgroundColor: Colors.transparent,
-      systemOverlayStyle: SystemUiOverlayStyle.dark,
+      systemOverlayStyle: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       flexibleSpace: ClipRRect(
         child: BackdropFilter(
           filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
@@ -150,38 +198,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       ),
       centerTitle: true,
       actions: [
-        // Month selector – modern pill style
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.grey.shade800.withOpacity(0.8) : Colors.white.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: Colors.white24),
-          ),
-          child: DropdownButton<DateTime>(
-            value: selectedMonth,
-            underline: const SizedBox(),
-            icon: const Icon(Icons.calendar_month, size: 18),
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-            items: availableMonths.map((month) {
-              return DropdownMenuItem(
-                value: month,
-                child: Text(formatMonthYear(month)),
-              );
-            }).toList(),
-            onChanged: (newMonth) {
-              if (newMonth != null) {
-                HapticFeedback.selectionClick();
-                ref.read(selectedMonthProvider.notifier).state = newMonth;
-                ref.read(transactionListProvider.notifier).setSelectedMonth(newMonth);
-              }
-            },
-          ),
-        ),
         IconButton(
           icon: const Icon(Icons.bar_chart_rounded),
           onPressed: () => Navigator.pushNamed(context, AppRoutes.insights),
@@ -535,20 +551,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPremiumFAB(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () {
-        HapticFeedback.mediumImpact();
-        Navigator.pushNamed(context, AppRoutes.addEditTransaction);
-      },
-      icon: const Icon(Icons.add, size: 24),
-      label: const Text('Add Transaction'),
-      elevation: 6,
-      shape: StadiumBorder(),
-      backgroundColor: Theme.of(context).primaryColor,
     );
   }
 }
