@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/transaction_provider.dart';
 import '../widgets/transaction_tile.dart';
@@ -44,7 +45,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     final availableMonths = ref.watch(availableMonthsProvider);
     final repo = ref.read(financeRepoProvider);
 
-    // Calculate summary for selected month
     final monthIncome = transactions
         .where((t) => t.type == TransactionType.income)
         .fold(0.0, (sum, t) => sum + t.amount);
@@ -57,6 +57,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
 
     return Scaffold(
       appBar: AppBar(
+        // Custom back button
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.pop(context);
+          },
+          tooltip: 'Back',
+        ),
         title: const Text('Transactions'),
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
