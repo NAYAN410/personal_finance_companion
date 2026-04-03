@@ -7,13 +7,13 @@ Track income/expense, set monthly savings goals, gain insights, and manage trans
 
 ## 📱 Screenshots
 
-| Dashboard | Transactions | Add/Edit Transaction |
-|-----------|--------------|----------------------|
-| ![Dashboard](screenshots/dashboard.png) | ![Transactions](screenshots/transactions.png) | ![Add/Edit](screenshots/add_edit.png) |
+| Dashboard                                | Transactions                                   | Add/Edit Transaction                   |
+|------------------------------------------|------------------------------------------------|----------------------------------------|
+| ![Dashboard](screenshots/dashboard.jpeg) | ![Transactions](screenshots/transactions.jpeg) | ![Add/Edit](screenshots/add_edit.jpeg) |
 
-| Goal | Insights |
-|------|----------|
-| ![Goal](screenshots/goal.png) | ![Insights](screenshots/insights.png) |
+| Goal                           | Insights                               |
+|--------------------------------|----------------------------------------|
+| ![Goal](screenshots/goal.jpeg) | ![Insights](screenshots/insights.jpeg) |
 
 ---
 
