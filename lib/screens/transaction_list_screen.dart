@@ -6,6 +6,7 @@ import '../widgets/transaction_tile.dart';
 import '../data/models/transaction.dart';
 import '../app/routes.dart';
 import '../utils/formatters.dart';
+import '../utils/csv_exporter.dart';
 
 class TransactionListScreen extends ConsumerStatefulWidget {
   const TransactionListScreen({super.key});
@@ -37,6 +38,30 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     super.dispose();
   }
 
+  Future<void> _exportTransactions() async {
+    final transactions = ref.read(transactionListProvider);
+    final selectedMonth = ref.read(selectedMonthProvider);
+    final monthYear = formatMonthYear(selectedMonth);
+
+    if (transactions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No transactions to export')),
+      );
+      return;
+    }
+
+    try {
+      await CSVExporter.exportTransactions(transactions, monthYear);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exported $monthYear transactions')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final transactions = ref.watch(transactionListProvider);
@@ -57,7 +82,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
 
     return Scaffold(
       appBar: AppBar(
-        // Custom back button
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () {
@@ -70,6 +94,12 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         actions: [
+          // Export button
+          IconButton(
+            icon: const Icon(Icons.download_rounded),
+            onPressed: _exportTransactions,
+            tooltip: 'Export CSV',
+          ),
           PopupMenuButton<TransactionType?>(
             onSelected: (value) => notifier.setFilterType(value),
             icon: const Icon(Icons.filter_list_rounded),
@@ -84,7 +114,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
           preferredSize: const Size.fromHeight(120),
           child: Column(
             children: [
-              // Month selector dropdown
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Container(
@@ -113,7 +142,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                   ),
                 ),
               ),
-              // Month summary card
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Card(
@@ -135,7 +163,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                   ),
                 ),
               ),
-              // Search field
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 child: Container(
