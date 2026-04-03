@@ -4,6 +4,7 @@ import '../providers/transaction_provider.dart';
 import '../widgets/transaction_tile.dart';
 import '../data/models/transaction.dart';
 import '../app/routes.dart';
+import '../utils/formatters.dart';
 
 class TransactionListScreen extends ConsumerStatefulWidget {
   const TransactionListScreen({super.key});
@@ -39,6 +40,19 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
   Widget build(BuildContext context) {
     final transactions = ref.watch(transactionListProvider);
     final notifier = ref.read(transactionListProvider.notifier);
+    final selectedMonth = ref.watch(selectedMonthProvider);
+    final availableMonths = ref.watch(availableMonthsProvider);
+    final repo = ref.read(financeRepoProvider);
+
+    // Calculate summary for selected month
+    final monthIncome = transactions
+        .where((t) => t.type == TransactionType.income)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    final monthExpense = transactions
+        .where((t) => t.type == TransactionType.expense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    final monthBalance = monthIncome - monthExpense;
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -58,32 +72,88 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  hintText: 'Search by note...',
-                  prefixIcon: Icon(Icons.search),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
+          preferredSize: const Size.fromHeight(120),
+          child: Column(
+            children: [
+              // Month selector dropdown
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: DropdownButton<DateTime>(
+                    value: selectedMonth,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    icon: const Icon(Icons.arrow_drop_down),
+                    items: availableMonths.map((month) {
+                      return DropdownMenuItem(
+                        value: month,
+                        child: Text(formatMonthYear(month)),
+                      );
+                    }).toList(),
+                    onChanged: (newMonth) {
+                      if (newMonth != null) {
+                        ref.read(selectedMonthProvider.notifier).state = newMonth;
+                        notifier.setSelectedMonth(newMonth);
+                      }
+                    },
+                  ),
                 ),
-                onChanged: notifier.setSearchQuery,
               ),
-            ),
+              // Month summary card
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _summaryItem('Income', monthIncome, Colors.green),
+                        Container(width: 1, height: 30, color: Colors.grey),
+                        _summaryItem('Expense', monthExpense, Colors.red),
+                        Container(width: 1, height: 30, color: Colors.grey),
+                        _summaryItem('Balance', monthBalance, monthBalance >= 0 ? Colors.blue : Colors.orange),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Search field
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Search by note...',
+                      prefixIcon: Icon(Icons.search),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onChanged: notifier.setSearchQuery,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: transactions.isEmpty
-            ? _buildEmptyState(context)
+            ? _buildEmptyState(context, selectedMonth)
             : ListView.builder(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -137,14 +207,27 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _summaryItem(String label, double amount, Color color) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12)),
+        const SizedBox(height: 4),
+        Text(
+          formatCurrency(amount),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, DateTime selectedMonth) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.receipt_long, size: 80, color: Colors.grey.shade400),
           const SizedBox(height: 16),
-          Text('No transactions found', style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
+          Text('No transactions in ${formatMonthYear(selectedMonth)}', style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
           const SizedBox(height: 8),
           ElevatedButton.icon(
             onPressed: () => Navigator.pushNamed(context, AppRoutes.addEditTransaction),
