@@ -30,6 +30,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     _fadeAnimation = CurvedAnimation(
         parent: _animationController, curve: Curves.easeOut);
     _animationController.forward();
+
+    // Sync selected month with the provider (optional)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final currentMonth = ref.read(selectedMonthProvider);
+      ref.read(transactionListProvider.notifier).setSelectedMonth(currentMonth);
+    });
   }
 
   @override
@@ -41,19 +47,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     final transactions = ref.watch(transactionListProvider);
+    final selectedMonth = ref.watch(selectedMonthProvider);
+    final availableMonths = ref.watch(availableMonthsProvider);
     final repo = ref.read(financeRepoProvider);
-    final balance = repo.getBalance(transactions);
-    final totalIncome = repo.getTotalIncome(transactions);
-    final totalExpense = repo.getTotalExpense(transactions);
+
+    // Calculate month-wise stats
+    final monthIncome = transactions
+        .where((t) => t.type == TransactionType.income)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    final monthExpense = transactions
+        .where((t) => t.type == TransactionType.expense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    final monthBalance = monthIncome - monthExpense;
     final recent = transactions.reversed.take(5).toList();
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: _buildModernAppBar(context, isDark),
+      appBar: _buildModernAppBar(context, isDark, selectedMonth, availableMonths),
       body: RefreshIndicator(
-        onRefresh: () async =>
-            ref.read(transactionListProvider.notifier).loadTransactions(),
+        onRefresh: () async {
+          ref.read(transactionListProvider.notifier).loadTransactions();
+        },
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.only(top: 100, bottom: 30),
@@ -61,7 +77,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             children: [
               FadeTransition(
                 opacity: _fadeAnimation,
-                child: _buildBalanceHero(balance, totalIncome, totalExpense),
+                child: _buildBalanceHero(monthBalance, monthIncome, monthExpense),
               ),
               const SizedBox(height: 24),
               FadeTransition(
@@ -71,17 +87,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               const SizedBox(height: 24),
               FadeTransition(
                 opacity: _fadeAnimation,
-                child:
-                _buildSpendingInsightCard(transactions, repo, isDark),
+                child: _buildSpendingInsightCard(transactions, repo, isDark),
               ),
               const SizedBox(height: 24),
               FadeTransition(
                 opacity: _fadeAnimation,
-                child:
-                _buildRecentTransactionsHeader(context, recent.length),
+                child: _buildRecentTransactionsHeader(context, recent.length),
               ),
               recent.isEmpty
-                  ? _buildEmptyState(context)
+                  ? _buildEmptyState(context, selectedMonth)
                   : Column(
                 children: recent
                     .map((t) => TransactionTile(transaction: t))
@@ -95,7 +109,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-  PreferredSizeWidget _buildModernAppBar(BuildContext context, bool isDark) {
+  PreferredSizeWidget _buildModernAppBar(BuildContext context, bool isDark,
+      DateTime selectedMonth, List<DateTime> availableMonths) {
     return AppBar(
       elevation: 0,
       backgroundColor: isDark
@@ -107,6 +122,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       ),
       centerTitle: true,
       actions: [
+        // Month selector dropdown
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: DropdownButton<DateTime>(
+            value: selectedMonth,
+            underline: const SizedBox(),
+            icon: const Icon(Icons.calendar_month),
+            items: availableMonths.map((month) {
+              return DropdownMenuItem(
+                value: month,
+                child: Text(formatMonthYear(month)),
+              );
+            }).toList(),
+            onChanged: (newMonth) {
+              if (newMonth != null) {
+                ref.read(selectedMonthProvider.notifier).state = newMonth;
+                ref.read(transactionListProvider.notifier).setSelectedMonth(newMonth);
+              }
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
         IconButton(
           icon: const Icon(Icons.bar_chart_rounded),
           onPressed: () =>
@@ -147,7 +188,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           child: Column(
             children: [
               const Text(
-                'Total Balance',
+                'Monthly Balance',
                 style: TextStyle(
                     color: Colors.white70,
                     fontSize: 16,
@@ -432,7 +473,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, DateTime selectedMonth) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(40),
@@ -448,7 +489,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 12),
           Text(
-            'No transactions yet',
+            'No transactions in ${formatMonthYear(selectedMonth)}',
             style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
@@ -456,7 +497,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             onPressed: () => Navigator.pushNamed(
                 context, AppRoutes.addEditTransaction),
             icon: const Icon(Icons.add),
-            label: const Text('Add your first transaction'),
+            label: const Text('Add one'),
             style: ElevatedButton.styleFrom(shape: StadiumBorder()),
           ),
         ],
